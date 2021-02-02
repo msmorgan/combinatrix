@@ -76,6 +76,30 @@ pub fn is(c: char) -> Rc<dyn Lexer> {
     Rc::new(Is(c))
 }
 
+pub struct Exact(String);
+
+impl Lexer for Exact {
+    fn lex(&self, input: &str) -> Option<usize> {
+        if input.starts_with(&self.0) {
+            Some(self.0.len())
+        } else {
+            None
+        }
+    }
+
+    fn consumes(&self) -> bool {
+        self.0.len() > 0
+    }
+
+    fn expected(&self) -> String {
+        format!("the string \"{}\"", &self.0)
+    }
+}
+
+pub fn exact(string: impl AsRef<str>) -> Rc<dyn Lexer> {
+    Rc::new(Exact(string.as_ref().to_string()))
+}
+
 fn join_with_last<S: ToString>(items: impl AsRef<[S]>, sep: &str, last_sep: &str) -> String {
     let items = items.as_ref();
 
@@ -282,6 +306,38 @@ pub fn seq(lexers: impl AsRef<[Rc<dyn Lexer>]>) -> Rc<dyn Lexer> {
     Rc::new(Seq(lexers.as_ref().into()))
 }
 
+struct Reject(Rc<dyn Lexer>);
+
+impl Lexer for Reject {
+    fn lex(&self, input: &str) -> Option<usize> {
+        if self.0.lex(input).is_none() {
+            Some(0)
+        } else {
+            None
+        }
+    }
+
+    fn consumes(&self) -> bool {
+        false
+    }
+
+    fn expected(&self) -> String {
+        todo!("<Reject as Lexer>::expected is confusing")
+    }
+}
+
+pub fn reject(lexer: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+    Rc::new(Reject(lexer))
+}
+
+pub fn not(lexer: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+    seq(&[reject(lexer), any()])
+}
+
+pub fn many_until(lexer: Rc<dyn Lexer>, stop_before: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+    many(seq(&[reject(stop_before), lexer]))
+}
+
 pub type TokenMap<T> = Vec<(Rc<dyn Lexer>, Box<dyn Fn(&str) -> T>)>;
 
 pub macro always($value:expr) {
@@ -292,11 +348,15 @@ pub mod prelude {
     pub use super::alt;
     pub use super::always;
     pub use super::any;
+    pub use super::exact;
     pub use super::is;
     pub use super::many;
+    pub use super::many_until;
+    pub use super::not;
     pub use super::one_of;
     pub use super::optional;
     pub use super::pred;
+    pub use super::reject;
     pub use super::seq;
     pub use super::some;
     pub use super::Lexer;

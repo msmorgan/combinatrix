@@ -26,6 +26,21 @@ fn number_lit_value(input: &str) -> Token {
     )
 }
 
+fn permissive_string_lit() -> Rc<dyn Lexer> {
+    let quote = is('"');
+
+    seq(&[
+        quote.clone(),
+        many_until(alt(&[any(), seq(&[is('\\'), any()])]), quote.clone()),
+        optional(quote.clone()),
+    ])
+}
+
+fn string_lit_value(input: &str) -> Token {
+    // TODO: Actually compute string value.
+    Token::String(input.to_string())
+}
+
 pub fn json_token_map() -> TokenMap<Token> {
     vec![
         (pred(|c| c.is_whitespace()), Box::new(|_| Token::Ignore)),
@@ -51,5 +66,6 @@ pub fn json_token_map() -> TokenMap<Token> {
         (exact("false"), Box::new(|_| Token::Boolean(false))),
         (exact("true"), Box::new(|_| Token::Boolean(true))),
         (number_lit(), Box::new(number_lit_value)),
+        (permissive_string_lit(), Box::new(string_lit_value)),
     ]
 }
