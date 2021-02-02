@@ -150,8 +150,52 @@ where
     Rc::new(Seq(parsers.as_ref().into()))
 }
 
+pub struct Map<Token, OutputA, OutputB, F>
+where
+    F: Fn(OutputA) -> OutputB,
+{
+    a_parser: RcParser<Token, OutputA>,
+    map_fn: F,
+}
+
+impl<Token, OutputA, OutputB, F> Parser for Map<Token, OutputA, OutputB, F>
+where
+    F: Fn(OutputA) -> OutputB,
+{
+    type Output = OutputB;
+    type Token = Token;
+
+    fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
+        self.a_parser
+            .parse(input)
+            .map(|(len, value)| (len, (self.map_fn)(value)))
+    }
+
+    fn consumes(&self) -> bool {
+        self.a_parser.consumes()
+    }
+
+    fn expected(&self) -> String {
+        self.a_parser.expected()
+    }
+}
+
+pub fn map<Token, OutputA, OutputB, F>(
+    a_parser: RcParser<Token, OutputA>,
+    map_fn: F,
+) -> RcParser<Token, OutputB>
+where
+    Token: 'static,
+    OutputA: 'static,
+    OutputB: 'static,
+    F: 'static + Fn(OutputA) -> OutputB,
+{
+    Rc::new(Map { a_parser, map_fn })
+}
+
 pub mod prelude {
     pub use super::bind;
+    pub use super::map;
     pub use super::seq;
     pub use super::terminal;
     pub use super::Error as ParserError;
