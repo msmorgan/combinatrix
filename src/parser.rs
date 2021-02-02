@@ -1,10 +1,15 @@
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+use either::Either;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("expected {0}")]
     Expected(String),
+
+    #[error("multiple errors")]
+    Composite(Vec<Error>),
 }
 
 pub trait Parser {
@@ -193,9 +198,47 @@ where
     Rc::new(Map { a_parser, map_fn })
 }
 
+pub struct Or<Token, OutputA, OutputB>(RcParser<Token, OutputA>, RcParser<Token, OutputB>);
+
+impl<Token, OutputA, OutputB> Parser for Or<Token, OutputA, OutputB> {
+    type Output = Either<OutputA, OutputB>;
+    type Token = Token;
+
+    fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
+        match self.0.parse(input) {
+            Ok((len, value)) => Ok((len, Either::Left(value))),
+            Err(a_err) => match self.1.parse(input) {
+                Ok((len, value)) => Ok((len, Either::Right(value))),
+                Err(b_err) => Err(Error::Composite(vec![a_err, b_err])),
+            },
+        }
+    }
+
+    fn consumes(&self) -> bool {
+        self.0.consumes() && self.1.consumes()
+    }
+
+    fn expected(&self) -> String {
+        format!("{} or {}", self.0.expected(), self.1.expected())
+    }
+}
+
+pub fn or<Token, OutputA, OutputB>(
+    a_parser: RcParser<Token, OutputA>,
+    b_parser: RcParser<Token, OutputB>,
+) -> RcParser<Token, Either<OutputA, OutputB>>
+where
+    Token: 'static,
+    OutputA: 'static,
+    OutputB: 'static,
+{
+    Rc::new(Or(a_parser, b_parser))
+}
+
 pub mod prelude {
     pub use super::bind;
     pub use super::map;
+    pub use super::or;
     pub use super::seq;
     pub use super::terminal;
     pub use super::Error as ParserError;
