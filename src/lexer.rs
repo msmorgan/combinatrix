@@ -19,6 +19,8 @@ pub trait Lexer {
     }
 }
 
+type RcLexer = Rc<dyn Lexer>;
+
 pub struct Pred<F>(F)
 where
     F: Fn(char) -> bool;
@@ -46,7 +48,7 @@ where
     }
 }
 
-pub fn pred(predicate: impl 'static + Fn(char) -> bool) -> Rc<dyn Lexer> {
+pub fn pred(predicate: impl 'static + Fn(char) -> bool) -> RcLexer {
     Rc::new(Pred(predicate))
 }
 
@@ -72,7 +74,7 @@ impl Lexer for Is {
     }
 }
 
-pub fn is(c: char) -> Rc<dyn Lexer> {
+pub fn is(c: char) -> RcLexer {
     Rc::new(Is(c))
 }
 
@@ -96,7 +98,7 @@ impl Lexer for Exact {
     }
 }
 
-pub fn exact(string: impl AsRef<str>) -> Rc<dyn Lexer> {
+pub fn exact(string: impl AsRef<str>) -> RcLexer {
     Rc::new(Exact(string.as_ref().to_string()))
 }
 
@@ -160,7 +162,7 @@ impl Lexer for OneOf {
     }
 }
 
-pub fn one_of(chars: impl AsRef<str>) -> Rc<dyn Lexer> {
+pub fn one_of(chars: impl AsRef<str>) -> RcLexer {
     Rc::new(OneOf(chars.as_ref().to_string()))
 }
 
@@ -180,12 +182,12 @@ impl Lexer for Any {
     }
 }
 
-pub fn any() -> Rc<dyn Lexer> {
+pub fn any() -> RcLexer {
     Rc::new(Any)
 }
 
 pub struct Repeat {
-    lexer: Rc<dyn Lexer>,
+    lexer: RcLexer,
     min: usize,
     max: Option<usize>,
 }
@@ -217,7 +219,7 @@ impl Lexer for Repeat {
     }
 }
 
-fn repeat(lexer: Rc<dyn Lexer>, bounds: impl RangeBounds<usize>) -> Rc<dyn Lexer> {
+fn repeat(lexer: RcLexer, bounds: impl RangeBounds<usize>) -> RcLexer {
     let min = match bounds.start_bound() {
         Bound::Included(n) => *n,
         Bound::Excluded(n) => *n + 1,
@@ -237,19 +239,19 @@ fn repeat(lexer: Rc<dyn Lexer>, bounds: impl RangeBounds<usize>) -> Rc<dyn Lexer
     Rc::new(Repeat { lexer, min, max })
 }
 
-pub fn optional(lexer: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+pub fn optional(lexer: RcLexer) -> RcLexer {
     repeat(lexer, 0..=1)
 }
 
-pub fn some(lexer: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+pub fn some(lexer: RcLexer) -> RcLexer {
     repeat(lexer, 1..)
 }
 
-pub fn many(lexer: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+pub fn many(lexer: RcLexer) -> RcLexer {
     repeat(lexer, ..)
 }
 
-pub struct Alt(Vec<Rc<dyn Lexer>>);
+pub struct Alt(Vec<RcLexer>);
 
 impl Lexer for Alt {
     fn lex(&self, input: &str) -> Option<usize> {
@@ -274,11 +276,11 @@ impl Lexer for Alt {
     }
 }
 
-pub fn alt(lexers: impl AsRef<[Rc<dyn Lexer>]>) -> Rc<dyn Lexer> {
+pub fn alt(lexers: impl AsRef<[RcLexer]>) -> RcLexer {
     Rc::new(Alt(lexers.as_ref().into()))
 }
 
-pub struct Seq(Vec<Rc<dyn Lexer>>);
+pub struct Seq(Vec<RcLexer>);
 
 impl Lexer for Seq {
     fn lex(&self, input: &str) -> Option<usize> {
@@ -302,11 +304,11 @@ impl Lexer for Seq {
     }
 }
 
-pub fn seq(lexers: impl AsRef<[Rc<dyn Lexer>]>) -> Rc<dyn Lexer> {
+pub fn seq(lexers: impl AsRef<[RcLexer]>) -> RcLexer {
     Rc::new(Seq(lexers.as_ref().into()))
 }
 
-struct Reject(Rc<dyn Lexer>);
+struct Reject(RcLexer);
 
 impl Lexer for Reject {
     fn lex(&self, input: &str) -> Option<usize> {
@@ -326,19 +328,19 @@ impl Lexer for Reject {
     }
 }
 
-pub fn reject(lexer: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+pub fn reject(lexer: RcLexer) -> RcLexer {
     Rc::new(Reject(lexer))
 }
 
-pub fn not(lexer: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+pub fn not(lexer: RcLexer) -> RcLexer {
     seq(&[reject(lexer), any()])
 }
 
-pub fn many_until(lexer: Rc<dyn Lexer>, stop_before: Rc<dyn Lexer>) -> Rc<dyn Lexer> {
+pub fn many_until(lexer: RcLexer, stop_before: RcLexer) -> RcLexer {
     many(seq(&[reject(stop_before), lexer]))
 }
 
-pub type TokenMap<T> = Vec<(Rc<dyn Lexer>, Box<dyn Fn(&str) -> T>)>;
+pub type TokenMap<T> = Vec<(RcLexer, Box<dyn Fn(&str) -> T>)>;
 
 pub macro token_map($($lexer:expr => $to_token:expr),* $(,)?) {
     vec![$(
