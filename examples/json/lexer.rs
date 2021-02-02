@@ -42,30 +42,18 @@ fn string_lit_value(input: &str) -> Token {
 }
 
 pub fn json_token_map() -> TokenMap<Token> {
-    vec![
-        (pred(|c| c.is_whitespace()), always!(Token::Ignore)),
-        (
-            is('{'),
-            always!(Token::Punct(Punctuation::Curly(Bracket::Open))),
-        ),
-        (
-            is('}'),
-            always!(Token::Punct(Punctuation::Curly(Bracket::Close))),
-        ),
-        (
-            is('['),
-            always!(Token::Punct(Punctuation::Square(Bracket::Open))),
-        ),
-        (
-            is(']'),
-            always!(Token::Punct(Punctuation::Square(Bracket::Close))),
-        ),
-        (is(','), always!(Token::Punct(Punctuation::Comma))),
-        (is(':'), always!(Token::Punct(Punctuation::Colon))),
-        (exact("null"), always!(Token::Null)),
-        (exact("false"), always!(Token::Boolean(false))),
-        (exact("true"), always!(Token::Boolean(true))),
-        (number_lit(), Box::new(number_lit_value)),
-        (permissive_string_lit(), Box::new(string_lit_value)),
-    ]
+    token_map!(
+        pred(|c| c.is_whitespace()) => always!(Token::Ignore),
+        is('{') => always!(Token::Punct(Punctuation::Curly(Bracket::Open))),
+        is('}') => always!(Token::Punct(Punctuation::Curly(Bracket::Close))),
+        is('[') => always!(Token::Punct(Punctuation::Square(Bracket::Open))),
+        is(']') => always!(Token::Punct(Punctuation::Square(Bracket::Close))),
+        is(',') => always!(Token::Punct(Punctuation::Comma)),
+        is(':') => always!(Token::Punct(Punctuation::Colon)),
+        exact("null") => always!(Token::Null),
+        exact("false") => always!(Token::Boolean(false)),
+        exact("true") => always!(Token::Boolean(true)),
+        number_lit() => Box::new(number_lit_value),
+        permissive_string_lit() => Box::new(string_lit_value),
+    )
 }

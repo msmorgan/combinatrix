@@ -340,6 +340,12 @@ pub fn many_until(lexer: Rc<dyn Lexer>, stop_before: Rc<dyn Lexer>) -> Rc<dyn Le
 
 pub type TokenMap<T> = Vec<(Rc<dyn Lexer>, Box<dyn Fn(&str) -> T>)>;
 
+pub macro token_map($($lexer:expr => $to_token:expr),* $(,)?) {
+    vec![$(
+        ($lexer, $to_token),
+    )*]
+}
+
 pub macro always($value:expr) {
     Box::new(|_| $value)
 }
@@ -359,6 +365,7 @@ pub mod prelude {
     pub use super::reject;
     pub use super::seq;
     pub use super::some;
+    pub use super::token_map;
     pub use super::Lexer;
     pub use super::TokenMap;
 }
