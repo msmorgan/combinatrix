@@ -8,8 +8,8 @@ pub enum Error {
 }
 
 pub trait Parser {
-    type Token;
     type Output;
+    type Token;
 
     fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error>;
 
@@ -108,8 +108,51 @@ where
     Rc::new(Bind { a_parser, b_func })
 }
 
+pub struct Seq<Token, Output>(Vec<RcParser<Token, Output>>);
+
+impl<Token, Output> Parser for Seq<Token, Output> {
+    type Output = Vec<Output>;
+    type Token = Token;
+
+    fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
+        let mut outputs = vec![];
+        let mut len = 0;
+
+        for parser in &self.0 {
+            match parser.parse(&input[len..]) {
+                Ok((n, value)) => {
+                    outputs.push(value);
+                    len += n;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok((len, outputs))
+    }
+
+    fn consumes(&self) -> bool {
+        self.0.iter().any(|p| p.consumes())
+    }
+
+    fn expected(&self) -> String {
+        todo!("<Seq as Parser>::expected should chain its contents' expected fns.")
+    }
+}
+
+pub fn seq<Token, Output>(
+    parsers: impl AsRef<[RcParser<Token, Output>]>,
+) -> RcParser<Token, Vec<Output>>
+where
+    Token: 'static,
+    Output: 'static,
+{
+    Rc::new(Seq(parsers.as_ref().into()))
+}
+
 pub mod prelude {
     pub use super::bind;
+    pub use super::seq;
     pub use super::terminal;
     pub use super::Error as ParserError;
     pub use super::Parser;
