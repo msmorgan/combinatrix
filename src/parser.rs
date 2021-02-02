@@ -28,8 +28,8 @@ impl<Token, Output, F> Parser for Terminal<Token, Output, F>
 where
     F: Fn(&Token) -> Option<Output>,
 {
-    type Token = Token;
     type Output = Output;
+    type Token = Token;
 
     fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
         input
@@ -58,7 +58,58 @@ where
     Rc::new(Terminal(f, PhantomData))
 }
 
+pub struct Bind<Token, OutputA, OutputB, FuncB>
+where
+    FuncB: Fn(OutputA) -> RcParser<Token, OutputB>,
+{
+    a_parser: RcParser<Token, OutputA>,
+    b_func: FuncB,
+}
+
+impl<Token, OutputA, OutputB, FuncB> Parser for Bind<Token, OutputA, OutputB, FuncB>
+where
+    FuncB: Fn(OutputA) -> RcParser<Token, OutputB>,
+{
+    type Output = OutputB;
+    type Token = Token;
+
+    fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
+        match self.a_parser.parse(input) {
+            Ok((a_len, a_out)) => {
+                let b_parser = (self.b_func)(a_out);
+                match b_parser.parse(&input[a_len..]) {
+                    Ok((b_len, b_out)) => Ok((a_len + b_len, b_out)),
+                    Err(e) => Err(e),
+                }
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn consumes(&self) -> bool {
+        todo!("<Bind as Parser>::consumes is hard to determine.")
+    }
+
+    fn expected(&self) -> String {
+        todo!("<Bind as Parser>::expected probably justifies rewrite of Parser::expected.")
+    }
+}
+
+pub fn bind<Token, OutputA, OutputB, F>(
+    a_parser: RcParser<Token, OutputA>,
+    b_func: F,
+) -> RcParser<Token, OutputB>
+where
+    Token: 'static,
+    OutputA: 'static,
+    OutputB: 'static,
+    F: 'static + Fn(OutputA) -> RcParser<Token, OutputB>,
+{
+    Rc::new(Bind { a_parser, b_func })
+}
+
 pub mod prelude {
+    pub use super::bind;
     pub use super::terminal;
     pub use super::Error as ParserError;
     pub use super::Parser;
