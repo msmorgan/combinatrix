@@ -19,7 +19,7 @@ pub trait Lexer {
     }
 }
 
-type RcLexer = Rc<dyn Lexer>;
+pub type RcLexer = Rc<dyn Lexer>;
 
 pub struct Pred<F>(F)
 where
@@ -186,6 +186,26 @@ pub fn any() -> RcLexer {
     Rc::new(Any)
 }
 
+pub struct CharRange(char, char);
+
+impl Lexer for CharRange {
+    fn lex(&self, input: &str) -> Option<usize> {
+        input.chars().next().and_then(|c| if c >= self.0 && c <= self.1 { Some(c.len_utf8()) } else { None })
+    }
+
+    fn consumes(&self) -> bool {
+        true
+    }
+
+    fn expected(&self) -> String {
+        format!("a character between '{}' and '{}'", self.0, self.1)
+    }
+}
+
+pub fn char_range(start: char, end: char) -> RcLexer {
+    Rc::new(CharRange(start, end))
+}
+
 pub struct Repeat {
     lexer: RcLexer,
     min: usize,
@@ -200,6 +220,8 @@ impl Lexer for Repeat {
             if let Some(n) = self.lexer.lex(&input[len..]) {
                 count += 1;
                 len += n;
+            } else {
+                break;
             }
         }
         if count >= self.min { Some(len) } else { None }
@@ -219,7 +241,7 @@ impl Lexer for Repeat {
     }
 }
 
-fn repeat(lexer: RcLexer, bounds: impl RangeBounds<usize>) -> RcLexer {
+pub fn repeat(lexer: RcLexer, bounds: impl RangeBounds<usize>) -> RcLexer {
     let min = match bounds.start_bound() {
         Bound::Included(n) => *n,
         Bound::Excluded(n) => *n + 1,
@@ -352,12 +374,31 @@ pub macro always($value:expr) {
     Box::new(|_| $value)
 }
 
+pub fn get_tokens<T>(token_map: TokenMap<T>, input: &str) -> Vec<T> {
+    let mut tokens = vec![];
+    let mut pos = 0;
+    'outer: while pos < input.len() {
+        for (lexer, make_token) in &token_map {
+            if let Some(n) = lexer.lex(&input[pos..]) {
+                let token = make_token(&input[pos..pos+n]);
+                tokens.push(token);
+                pos += n;
+                continue 'outer;
+            }
+        }
+        break;
+    }
+    tokens
+}
+
 pub mod prelude {
     pub use super::alt;
     pub use super::always;
     pub use super::any;
+    pub use super::char_range;
     pub use super::exact;
     pub use super::is;
+    pub use super::get_tokens;
     pub use super::many;
     pub use super::many_until;
     pub use super::not;
@@ -365,9 +406,11 @@ pub mod prelude {
     pub use super::optional;
     pub use super::pred;
     pub use super::reject;
+    pub use super::repeat;
     pub use super::seq;
     pub use super::some;
     pub use super::token_map;
     pub use super::Lexer;
     pub use super::TokenMap;
+    pub use super::RcLexer;
 }
