@@ -193,6 +193,48 @@ where
     Rc::new(Map { a_parser, map_fn })
 }
 
+pub struct And<Tok, OutA, OutB> {
+    a_parser: RcParser<Tok, OutA>,
+    b_parser: RcParser<Tok, OutB>,
+}
+
+impl<Tok, OutA, OutB> Parser for And<Tok, OutA, OutB> {
+    type Output = (OutA, OutB);
+    type Token = Tok;
+
+    fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
+        self.a_parser.parse(input).and_then(|(len_a, out_a)| {
+            self.b_parser
+                .parse(&input[len_a..])
+                .map(|(len_b, out_b)| (len_a + len_b, (out_a, out_b)))
+        })
+    }
+
+    fn consumes(&self) -> bool {
+        self.a_parser.consumes() || self.b_parser.consumes()
+    }
+
+    fn expected(&self) -> String {
+        format!(
+            "{} and {}",
+            self.a_parser.expected(),
+            self.b_parser.expected()
+        )
+    }
+}
+
+pub fn and<Tok, OutA, OutB>(
+    a_parser: RcParser<Tok, OutA>,
+    b_parser: RcParser<Tok, OutB>,
+) -> RcParser<Tok, (OutA, OutB)>
+where
+    Tok: 'static,
+    OutA: 'static,
+    OutB: 'static,
+{
+    Rc::new(And { a_parser, b_parser })
+}
+
 pub struct Or<Tok, OutA, OutB>(RcParser<Tok, OutA>, RcParser<Tok, OutB>);
 
 impl<Tok, OutA, OutB> Parser for Or<Tok, OutA, OutB> {
@@ -231,6 +273,7 @@ where
 }
 
 pub mod prelude {
+    pub use super::and;
     pub use super::bind;
     pub use super::map;
     pub use super::or;
