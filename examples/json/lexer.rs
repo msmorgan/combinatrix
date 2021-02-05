@@ -2,6 +2,8 @@ use std::rc::Rc;
 
 use combinatrix::lexer::prelude::*;
 
+use crate::string::lexer::lex_string;
+use crate::string::parser::parse_string;
 use crate::token::*;
 
 fn number_lit() -> Rc<dyn Lexer> {
@@ -19,7 +21,7 @@ fn number_lit() -> Rc<dyn Lexer> {
 }
 
 fn number_lit_value(input: &str) -> Token {
-    Token::Number(
+    Token::NumberLit(
         input
             .parse()
             .expect("invalid number literal lexed as number literal"),
@@ -37,8 +39,9 @@ fn permissive_string_lit() -> Rc<dyn Lexer> {
 }
 
 fn string_lit_value(input: &str) -> Token {
-    // TODO: Actually compute string value.
-    Token::String(input.to_string())
+    let tokens = lex_string(input);
+    let value = parse_string(tokens).unwrap();
+    Token::StringLit(value)
 }
 
 pub fn json_token_map() -> TokenMap<Token> {
@@ -50,9 +53,9 @@ pub fn json_token_map() -> TokenMap<Token> {
         is(']') => always!(Token::Punct(Punctuation::Square(Bracket::Close))),
         is(',') => always!(Token::Punct(Punctuation::Comma)),
         is(':') => always!(Token::Punct(Punctuation::Colon)),
-        exact("null") => always!(Token::Null),
-        exact("false") => always!(Token::Boolean(false)),
-        exact("true") => always!(Token::Boolean(true)),
+        exact("null") => always!(Token::NullLit),
+        exact("false") => always!(Token::BooleanLit(false)),
+        exact("true") => always!(Token::BooleanLit(true)),
         number_lit() => Box::new(number_lit_value),
         permissive_string_lit() => Box::new(string_lit_value),
     )

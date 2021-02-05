@@ -56,6 +56,10 @@ fn json_string_token_map() -> TokenMap<Token> {
     ]
 }
 
+pub fn lex_string(input: impl AsRef<str>) -> Vec<Token> {
+    get_tokens(json_string_token_map(), input.as_ref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

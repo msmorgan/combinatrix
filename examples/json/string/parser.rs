@@ -32,15 +32,19 @@ fn character() -> RcParser<Token, char> {
     })
 }
 
-pub fn string() -> RcParser<Token, String> {
+fn string() -> RcParser<Token, String> {
     map(
         seq(&[
             map(quote(), |_| None),
             map(many(character()), |chars| Some(chars.into_iter().collect())),
             map(quote(), |_| None),
         ]),
-        |mut results| mem::replace(results.get_mut(1).unwrap(), None).unwrap(),
+        |mut results: Vec<Option<String>>| results[1].take().unwrap(),
     )
+}
+
+pub fn parse_string(tokens: impl AsRef<[Token]>) -> Result<String, ParserError> {
+    string().parse(tokens.as_ref()).map(|(_, out)| out)
 }
 
 #[cfg(test)]

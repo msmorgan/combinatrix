@@ -7,4 +7,13 @@ mod string {
     pub mod token;
 }
 
+pub enum Value {
+    String(String),
+    Number(f64),
+    Boolean(bool),
+    Null,
+    Array(Vec<Value>),
+    Object(Vec<(String, Value)>),
+}
+
 fn main() {}

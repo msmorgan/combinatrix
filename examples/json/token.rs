@@ -16,9 +16,9 @@ pub enum Punctuation {
 pub enum Token {
     Ignore,
     Punct(Punctuation),
-    Null,
-    Boolean(bool),
-    Number(f64),
-    String(String),
+    NullLit,
+    BooleanLit(bool),
+    NumberLit(f64),
+    StringLit(String),
     Unexpected(char),
 }
