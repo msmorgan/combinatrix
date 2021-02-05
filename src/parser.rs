@@ -23,15 +23,15 @@ pub trait Parser {
     fn expected(&self) -> String;
 }
 
-type RcParser<Tok, Out> = Rc<dyn Parser<Token=Tok, Output=Out>>;
+type RcParser<Tok, Out> = Rc<dyn Parser<Token = Tok, Output = Out>>;
 
 pub struct Terminal<Tok, Out, F>(F, PhantomData<fn(&Tok) -> Out>)
-    where
-        F: Fn(&Tok) -> Option<Out>;
+where
+    F: Fn(&Tok) -> Option<Out>;
 
 impl<Tok, Out, F> Parser for Terminal<Tok, Out, F>
-    where
-        F: Fn(&Tok) -> Option<Out>,
+where
+    F: Fn(&Tok) -> Option<Out>,
 {
     type Output = Out;
     type Token = Tok;
@@ -55,40 +55,34 @@ impl<Tok, Out, F> Parser for Terminal<Tok, Out, F>
 }
 
 pub fn terminal<Tok, Out, F>(f: F) -> RcParser<Tok, Out>
-    where
-        Tok: 'static,
-        Out: 'static,
-        F: 'static + Fn(&Tok) -> Option<Out>,
+where
+    Tok: 'static,
+    Out: 'static,
+    F: 'static + Fn(&Tok) -> Option<Out>,
 {
     Rc::new(Terminal(f, PhantomData))
 }
 
 pub struct Bind<Tok, OutA, OutB, GetB>
-    where
-        GetB: Fn(OutA) -> RcParser<Tok, OutB>,
+where
+    GetB: Fn(OutA) -> RcParser<Tok, OutB>,
 {
     a_parser: RcParser<Tok, OutA>,
     b_func: GetB,
 }
 
 impl<Tok, OutA, OutB, GetB> Parser for Bind<Tok, OutA, OutB, GetB>
-    where
-        GetB: Fn(OutA) -> RcParser<Tok, OutB>,
+where
+    GetB: Fn(OutA) -> RcParser<Tok, OutB>,
 {
     type Output = OutB;
     type Token = Tok;
 
     fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
-        match self.a_parser.parse(input) {
-            Ok((a_len, a_out)) => {
-                let b_parser = (self.b_func)(a_out);
-                match b_parser.parse(&input[a_len..]) {
-                    Ok((b_len, b_out)) => Ok((a_len + b_len, b_out)),
-                    Err(e) => Err(e),
-                }
-            }
-            Err(e) => Err(e),
-        }
+        let (a_len, a_out) = self.a_parser.parse(input)?;
+        let b_parser = (self.b_func)(a_out);
+        let (b_len, b_out) = b_parser.parse(&input[a_len..])?;
+        Ok((a_len + b_len, b_out))
     }
 
     fn consumes(&self) -> bool {
@@ -104,11 +98,11 @@ pub fn bind<Tok, OutA, OutB, GetB>(
     a_parser: RcParser<Tok, OutA>,
     b_func: GetB,
 ) -> RcParser<Tok, OutB>
-    where
-        Tok: 'static,
-        OutA: 'static,
-        OutB: 'static,
-        GetB: 'static + Fn(OutA) -> RcParser<Tok, OutB>,
+where
+    Tok: 'static,
+    OutA: 'static,
+    OutB: 'static,
+    GetB: 'static + Fn(OutA) -> RcParser<Tok, OutB>,
 {
     Rc::new(Bind { a_parser, b_func })
 }
@@ -124,13 +118,9 @@ impl<Tok, Out> Parser for Seq<Tok, Out> {
         let mut len = 0;
 
         for parser in &self.0 {
-            match parser.parse(&input[len..]) {
-                Ok((n, value)) => {
-                    outputs.push(value);
-                    len += n;
-                }
-                Err(e) => return Err(e),
-            }
+            let (n, value) = parser.parse(&input[len..])?;
+            outputs.push(value);
+            len += n;
         }
 
         Ok((len, outputs))
@@ -146,24 +136,23 @@ impl<Tok, Out> Parser for Seq<Tok, Out> {
 }
 
 pub struct Map<Tok, OutA, OutB, F>
-    where
-        F: Fn(OutA) -> OutB,
+where
+    F: Fn(OutA) -> OutB,
 {
     a_parser: RcParser<Tok, OutA>,
     map_fn: F,
 }
 
 impl<Tok, OutA, OutB, F> Parser for Map<Tok, OutA, OutB, F>
-    where
-        F: Fn(OutA) -> OutB,
+where
+    F: Fn(OutA) -> OutB,
 {
     type Output = OutB;
     type Token = Tok;
 
     fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
-        self.a_parser
-            .parse(input)
-            .map(|(len, value)| (len, (self.map_fn)(value)))
+        let (len, out) = self.a_parser.parse(input)?;
+        Ok((len, (self.map_fn)(out)))
     }
 
     fn consumes(&self) -> bool {
@@ -176,19 +165,19 @@ impl<Tok, OutA, OutB, F> Parser for Map<Tok, OutA, OutB, F>
 }
 
 pub fn map<Tok, OutA, OutB, F>(a_parser: RcParser<Tok, OutA>, map_fn: F) -> RcParser<Tok, OutB>
-    where
-        Tok: 'static,
-        OutA: 'static,
-        OutB: 'static,
-        F: 'static + Fn(OutA) -> OutB,
+where
+    Tok: 'static,
+    OutA: 'static,
+    OutB: 'static,
+    F: 'static + Fn(OutA) -> OutB,
 {
     Rc::new(Map { a_parser, map_fn })
 }
 
 pub fn seq<Tok, Out>(parsers: impl AsRef<[RcParser<Tok, Out>]>) -> RcParser<Tok, Vec<Out>>
-    where
-        Tok: 'static,
-        Out: 'static,
+where
+    Tok: 'static,
+    Out: 'static,
 {
     Rc::new(Seq(parsers.as_ref().into()))
 }
@@ -215,7 +204,12 @@ impl<Tok, Out> Parser for Alt<Tok, Out> {
     }
 
     fn expected(&self) -> String {
-        self.0.iter().map(|p| p.expected()).collect::<Vec<_>>().as_slice().join(" or ")
+        self.0
+            .iter()
+            .map(|p| p.expected())
+            .collect::<Vec<_>>()
+            .as_slice()
+            .join(" or ")
     }
 }
 
@@ -237,11 +231,9 @@ impl<Tok, OutA, OutB> Parser for And<Tok, OutA, OutB> {
     type Token = Tok;
 
     fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
-        self.a_parser.parse(input).and_then(|(len_a, out_a)| {
-            self.b_parser
-                .parse(&input[len_a..])
-                .map(|(len_b, out_b)| (len_a + len_b, (out_a, out_b)))
-        })
+        let (len_a, out_a) = self.a_parser.parse(input)?;
+        let (len_b, out_b) = self.b_parser.parse(&input[len_a..])?;
+        Ok((len_a + len_b, (out_a, out_b)))
     }
 
     fn consumes(&self) -> bool {
@@ -261,10 +253,10 @@ pub fn and<Tok, OutA, OutB>(
     a_parser: RcParser<Tok, OutA>,
     b_parser: RcParser<Tok, OutB>,
 ) -> RcParser<Tok, (OutA, OutB)>
-    where
-        Tok: 'static,
-        OutA: 'static,
-        OutB: 'static,
+where
+    Tok: 'static,
+    OutA: 'static,
+    OutB: 'static,
 {
     Rc::new(And { a_parser, b_parser })
 }
@@ -298,10 +290,10 @@ pub fn or<Tok, OutA, OutB>(
     a_parser: RcParser<Tok, OutA>,
     b_parser: RcParser<Tok, OutB>,
 ) -> RcParser<Tok, Either<OutA, OutB>>
-    where
-        Tok: 'static,
-        OutA: 'static,
-        OutB: 'static,
+where
+    Tok: 'static,
+    OutA: 'static,
+    OutB: 'static,
 {
     Rc::new(Or(a_parser, b_parser))
 }
