@@ -1,4 +1,3 @@
-use std::collections::Bound;
 use std::ops::RangeBounds;
 use std::rc::Rc;
 
@@ -248,22 +247,7 @@ impl Lexer for Repeat {
 }
 
 pub fn repeat(lexer: RcLexer, bounds: impl RangeBounds<usize>) -> RcLexer {
-    let min = match bounds.start_bound() {
-        Bound::Included(n) => *n,
-        Bound::Excluded(n) => *n + 1,
-        Bound::Unbounded => 0,
-    };
-    let max = match bounds.start_bound() {
-        Bound::Included(n) => {
-            if *n < usize::MAX {
-                Some(*n + 1)
-            } else {
-                None
-            }
-        }
-        Bound::Excluded(n) => Some(*n),
-        Bound::Unbounded => None,
-    };
+    let (min, max) = crate::get_bounds(bounds);
     Rc::new(Repeat { lexer, min, max })
 }
 

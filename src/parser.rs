@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ops::RangeBounds;
 use std::rc::Rc;
 
 use either::Either;
@@ -7,6 +8,9 @@ use either::Either;
 pub enum Error {
     #[error("expected {0}")]
     Expected(String),
+
+    #[error("not enough repeats: {0}, encountered {1:?}")]
+    Repeat(usize, Option<Box<Error>>),
 
     #[error("multiple errors")]
     Composite(Vec<Error>),
@@ -298,13 +302,97 @@ where
     Rc::new(Or(a_parser, b_parser))
 }
 
+pub struct Repeat<Tok, Out> {
+    parser: RcParser<Tok, Out>,
+    min: usize,
+    max: Option<usize>,
+}
+
+impl<Tok, Out> Parser for Repeat<Tok, Out> {
+    type Output = Vec<Out>;
+    type Token = Tok;
+
+    fn parse(&self, input: &[Self::Token]) -> Result<(usize, Self::Output), Error> {
+        let mut len = 0;
+        let mut outputs = vec![];
+        let mut last_err = None;
+
+        while self.max.is_none() || outputs.len() < self.max.unwrap() {
+            match self.parser.parse(&input[len..]) {
+                Ok((n, out)) => {
+                    outputs.push(out);
+                    len += n;
+                }
+                Err(err) => {
+                    last_err = Some(Box::new(err));
+                    break;
+                }
+            }
+        }
+
+        if outputs.len() >= self.min {
+            Ok((len, outputs))
+        } else {
+            Err(Error::Repeat(outputs.len(), last_err))
+        }
+    }
+
+    fn consumes(&self) -> bool {
+        self.min > 0 && self.parser.consumes()
+    }
+
+    fn expected(&self) -> String {
+        if let Some(max) = self.max {
+            format!(
+                "between {} and {} {}",
+                self.min,
+                max,
+                self.parser.expected()
+            )
+        } else {
+            format!("at least {} {}", self.min, self.parser.expected())
+        }
+    }
+}
+
+pub fn repeat<Tok, Out>(
+    parser: RcParser<Tok, Out>,
+    bounds: impl RangeBounds<usize>,
+) -> RcParser<Tok, Vec<Out>>
+where
+    Tok: 'static,
+    Out: 'static,
+{
+    let (min, max) = crate::get_bounds(bounds);
+    Rc::new(Repeat { parser, min, max })
+}
+
+pub fn some<Tok, Out>(parser: RcParser<Tok, Out>) -> RcParser<Tok, Vec<Out>>
+where
+    Tok: 'static,
+    Out: 'static,
+{
+    repeat(parser, 1..)
+}
+
+pub fn many<Tok, Out>(parser: RcParser<Tok, Out>) -> RcParser<Tok, Vec<Out>>
+where
+    Tok: 'static,
+    Out: 'static,
+{
+    repeat(parser, 0..)
+}
+
 pub mod prelude {
     pub use super::alt;
     pub use super::and;
     pub use super::bind;
+    pub use super::many;
     pub use super::map;
     pub use super::or;
+    pub use super::repeat;
     pub use super::seq;
+    pub use super::some;
     pub use super::terminal;
     pub use super::Error as ParserError;
     pub use super::Parser;
