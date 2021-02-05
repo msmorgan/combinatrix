@@ -1,7 +1,6 @@
 #![feature(decl_macro)]
 
-use std::ops::Bound;
-use std::ops::RangeBounds;
+use std::ops::{Bound, RangeBounds};
 
 pub mod lexer;
 pub mod parser;

@@ -1,7 +1,6 @@
 use combinatrix::lexer::prelude::*;
 
-use crate::string::token::EscapedChar;
-use crate::string::token::Token;
+use crate::string::token::{EscapedChar, Token};
 
 fn unicode_escape() -> RcLexer {
     seq(&[

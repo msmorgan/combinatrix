@@ -385,17 +385,19 @@ where
 }
 
 pub mod prelude {
-    pub use super::alt;
-    pub use super::and;
-    pub use super::bind;
-    pub use super::many;
-    pub use super::map;
-    pub use super::or;
-    pub use super::repeat;
-    pub use super::seq;
-    pub use super::some;
-    pub use super::terminal;
-    pub use super::Error as ParserError;
-    pub use super::Parser;
-    pub use super::RcParser;
+    pub use super::{
+        alt,
+        and,
+        bind,
+        many,
+        map,
+        or,
+        repeat,
+        seq,
+        some,
+        terminal,
+        Error as ParserError,
+        Parser,
+        RcParser,
+    };
 }

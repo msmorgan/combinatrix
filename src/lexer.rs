@@ -382,25 +382,27 @@ pub fn get_tokens<T>(token_map: TokenMap<T>, input: &str) -> Vec<T> {
 }
 
 pub mod prelude {
-    pub use super::alt;
-    pub use super::always;
-    pub use super::any;
-    pub use super::char_range;
-    pub use super::exact;
-    pub use super::get_tokens;
-    pub use super::is;
-    pub use super::many;
-    pub use super::many_until;
-    pub use super::not;
-    pub use super::one_of;
-    pub use super::optional;
-    pub use super::pred;
-    pub use super::reject;
-    pub use super::repeat;
-    pub use super::seq;
-    pub use super::some;
-    pub use super::token_map;
-    pub use super::Lexer;
-    pub use super::RcLexer;
-    pub use super::TokenMap;
+    pub use super::{
+        alt,
+        always,
+        any,
+        char_range,
+        exact,
+        get_tokens,
+        is,
+        many,
+        many_until,
+        not,
+        one_of,
+        optional,
+        pred,
+        reject,
+        repeat,
+        seq,
+        some,
+        token_map,
+        Lexer,
+        RcLexer,
+        TokenMap,
+    };
 }
