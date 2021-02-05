@@ -381,6 +381,37 @@ pub fn get_tokens<T>(token_map: TokenMap<T>, input: &str) -> Vec<T> {
     tokens
 }
 
+#[cfg(feature = "regex")]
+#[doc_hidden]
+mod regex {
+    use std::rc::Rc;
+
+    pub use ::regex::Regex;
+
+    use super::{Lexer, RcLexer};
+
+    impl Lexer for Regex {
+        fn lex(&self, input: &str) -> Option<usize> {
+            self.find_at(input, 0).map(|m| m.end())
+        }
+
+        fn consumes(&self) -> bool {
+            todo!("Implement <Regex as Lexer>::consumes.")
+        }
+
+        fn expected(&self) -> String {
+            format!("characters matching the expression {:?}", self)
+        }
+    }
+
+    pub fn regex(expr: Regex) -> RcLexer {
+        Rc::new(expr)
+    }
+}
+
+#[cfg(feature = "regex")]
+pub use self::regex::*;
+
 pub mod prelude {
     pub use super::{
         alt,

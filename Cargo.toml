@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.38"
 either = "1.6.1"
+regex = { version = "1.4.3", optional = true }
 thiserror = "1.0.23"
