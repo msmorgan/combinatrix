@@ -12,7 +12,7 @@ fn get_bounds(bounds: impl RangeBounds<usize>) -> (usize, Option<usize>) {
         Bound::Excluded(n) => *n + 1,
         Bound::Unbounded => 0,
     };
-    let max = match bounds.start_bound() {
+    let max = match bounds.end_bound() {
         Bound::Included(n) => {
             if *n < usize::MAX {
                 Some(*n + 1)

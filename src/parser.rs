@@ -27,7 +27,7 @@ pub trait Parser {
     fn expected(&self) -> String;
 }
 
-type RcParser<Tok, Out> = Rc<dyn Parser<Token = Tok, Output = Out>>;
+pub type RcParser<Tok, Out> = Rc<dyn Parser<Token = Tok, Output = Out>>;
 
 pub struct Terminal<Tok, Out, F>(F, PhantomData<fn(&Tok) -> Out>)
 where
@@ -317,7 +317,8 @@ impl<Tok, Out> Parser for Repeat<Tok, Out> {
         let mut outputs = vec![];
         let mut last_err = None;
 
-        while self.max.is_none() || outputs.len() < self.max.unwrap() {
+        dbg!(self.max);
+        while dbg!(self.max.is_none() || outputs.len() < self.max.unwrap()) {
             match self.parser.parse(&input[len..]) {
                 Ok((n, out)) => {
                     outputs.push(out);
@@ -396,4 +397,5 @@ pub mod prelude {
     pub use super::terminal;
     pub use super::Error as ParserError;
     pub use super::Parser;
+    pub use super::RcParser;
 }
