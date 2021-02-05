@@ -145,14 +145,6 @@ impl<Tok, Out> Parser for Seq<Tok, Out> {
     }
 }
 
-pub fn seq<Tok, Out>(parsers: impl AsRef<[RcParser<Tok, Out>]>) -> RcParser<Tok, Vec<Out>>
-where
-    Tok: 'static,
-    Out: 'static,
-{
-    Rc::new(Seq(parsers.as_ref().into()))
-}
-
 pub struct Map<Tok, OutA, OutB, F>
 where
     F: Fn(OutA) -> OutB,
@@ -191,6 +183,14 @@ where
     F: 'static + Fn(OutA) -> OutB,
 {
     Rc::new(Map { a_parser, map_fn })
+}
+
+pub fn seq<Tok, Out>(parsers: impl AsRef<[RcParser<Tok, Out>]>) -> RcParser<Tok, Vec<Out>>
+where
+    Tok: 'static,
+    Out: 'static,
+{
+    Rc::new(Seq(parsers.as_ref().into()))
 }
 
 pub struct And<Tok, OutA, OutB> {
